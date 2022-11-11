@@ -20,6 +20,7 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(CaptureRemoteSignals CaptureRemoteSignals.c )
+pico_generate_pio_header(CaptureRemoteSignals ${CMAKE_CURRENT_LIST_DIR}/Capture.pio)
 
 pico_set_program_name(CaptureRemoteSignals "CaptureRemoteSignals")
 pico_set_program_version(CaptureRemoteSignals "0.1")
