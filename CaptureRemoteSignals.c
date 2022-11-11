@@ -106,7 +106,16 @@ void dmaHandler()
         // printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
     }
     // printf("Transfer done\n");
-    printf("%u\n", extractedData);
+
+    char n2 = extractedData & (char) 255;
+    char n1 = (extractedData >> 8) & (char) 255;
+    if (n1 + n2 == 255)
+    {
+        // printf("%u\n", extractedData);
+        printf("Raw: %u, Command: %u, Repeat: %d\n", extractedData, n1 >> 1, n1 & 1u);
+    }
+
+
     dma_channel_acknowledge_irq0(dmaChan);
     pio_sm_exec(pio, sm, pio_encode_wait_pin(false, 0));
     dma_channel_set_write_addr(dmaChan, &buffer, true);
