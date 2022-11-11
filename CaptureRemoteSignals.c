@@ -7,13 +7,18 @@
 #include "hardware/pio.h"
 #include "Capture.pio.h"
 
-#define captureSize 512
+#define captureSize 432
+#define capturePin 13
+#define vS 14
+
 void dmaHandler();
 static inline void setupDma(PIO, uint);
 static inline void setupPIO(PIO, uint, uint, uint, bool, float);
 
 uint32_t buffer[captureSize];
 uint dmaChan;
+PIO pio;
+uint sm;
 
 int main()
 {
@@ -25,12 +30,13 @@ int main()
     irq_set_enabled(DMA_IRQ_0, true);
     printf("%d\n", irq_is_enabled(DMA_IRQ_0));
 
-    PIO pio = pio0;
-    uint capturePin = 13;
-    uint vS = 14;
+    pio = pio0;
+    sm = pio_claim_unused_sm(pio, true);
+    
+    // uint capturePin = 13;
+    // uint vS = 14;
 
     uint offset = pio_add_program(pio, &capture_program);
-    uint sm = pio_claim_unused_sm(pio, true);
 
     //setup power to sensor
     gpio_init(vS);
@@ -53,11 +59,12 @@ int main()
 
 void dmaHandler()
 {
-    printf("Received, proccessing ready\n");
+    // printf("Received, proccessing ready\n");
     bool state = true;
     bool currentState;
-    uint32_t boolsParsed = 0;
     uint32_t stateWidth = 0;
+    uint32_t tempWidth;
+    uint32_t extractedData = 0;
     for (int i = 0; i < captureSize; i++)
     {
         for (int j = 0; j < 32; j++) //iterate from lsb of data
@@ -69,8 +76,26 @@ void dmaHandler()
             }
             if (currentState != state)
             {
-                printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
-                boolsParsed += stateWidth;
+                // printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
+                if (state)
+                {
+                    tempWidth = stateWidth; // the on time divided by off time will determine if the signal is on or off
+                }
+                if (!state) //it is false so divide true by false
+                {
+                    float temp = (float) tempWidth / stateWidth;
+                    // printf("%2.3f\n", temp);
+                    if (temp < 1.2)
+                    {
+                        extractedData *= 2;
+                        if (temp < 0.5)
+                        {
+                            extractedData += 1;
+                        }
+                    }
+
+                }
+
                 stateWidth = 1;
                 state = !state;
             }
@@ -78,12 +103,14 @@ void dmaHandler()
     }
     if (stateWidth != 1)
     {
-        printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
-        boolsParsed += stateWidth;
+        // printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
     }
-    printf("%u\n", boolsParsed);
-    printf("Transfer done\n");
+    // printf("Transfer done\n");
+    printf("%u\n", extractedData);
     dma_channel_acknowledge_irq0(dmaChan);
+    pio_sm_exec(pio, sm, pio_encode_wait_pin(false, 0));
+    dma_channel_set_write_addr(dmaChan, &buffer, true);
+    pio_sm_clear_fifos(pio, sm);
     return;
 }
 static inline void setupPIO(PIO pio, uint sm, uint offset, uint pin, bool trigger, float clkdiv)
