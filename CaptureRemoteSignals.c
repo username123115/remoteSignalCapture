@@ -56,22 +56,33 @@ void dmaHandler()
     printf("Received, proccessing ready\n");
     bool state = true;
     bool currentState;
+    uint32_t boolsParsed = 0;
     uint32_t stateWidth = 0;
     for (int i = 0; i < captureSize; i++)
     {
-        for (int j = 31; j >= 0; j--) //iterate from lsb of data
+        for (int j = 0; j < 32; j++) //iterate from lsb of data
         {
-            currentState = !((bool) ((buffer[i] >> j) && 1u));
-        }
-        if (currentState == state)
-        {
-            stateWidth += 1;
-        }
-        if (currentState != state)
-        {
-            printf("State: %s, Width: %d\n", state ? "False": "True", stateWidth);
+            currentState = !((bool) ((buffer[i] >> j) && 1u)); //1 is off 0 is on
+            if (currentState == state)
+            {
+                stateWidth += 1;
+            }
+            if (currentState != state)
+            {
+                printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
+                boolsParsed += stateWidth;
+                stateWidth = 1;
+                state = !state;
+            }
         }
     }
+    if (stateWidth != 1)
+    {
+        printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
+        boolsParsed += stateWidth;
+    }
+    printf("%u\n", boolsParsed);
+    printf("Transfer done\n");
     dma_channel_acknowledge_irq0(dmaChan);
     return;
 }
