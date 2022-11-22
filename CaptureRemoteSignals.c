@@ -10,6 +10,7 @@
 #define captureSize 432
 #define capturePin 13
 #define vS 14
+#define decode 0
 
 void dmaHandler();
 static inline void setupDma(PIO, uint);
@@ -76,24 +77,30 @@ void dmaHandler()
             }
             if (currentState != state)
             {
-                // printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
-                if (state)
+                if (!decode)
                 {
-                    tempWidth = stateWidth; // the on time divided by off time will determine if the signal is on or off
+                    printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
                 }
-                if (!state) //it is false so divide true by false
+                if (decode)
                 {
-                    float temp = (float) tempWidth / stateWidth;
-                    // printf("%2.3f\n", temp);
-                    if (temp < 1.2)
+                    if (state)
                     {
-                        extractedData *= 2;
-                        if (temp < 0.5)
-                        {
-                            extractedData += 1;
-                        }
+                        tempWidth = stateWidth; // the on time divided by off time will determine if the signal is on or off
                     }
+                    if (!state) //it is false so divide true by false
+                    {
+                        float temp = (float) tempWidth / stateWidth;
+                        // printf("%2.3f\n", temp);
+                        if (temp < 1.2)
+                        {
+                            extractedData *= 2;
+                            if (temp < 0.5)
+                            {
+                                extractedData += 1;
+                            }
+                        }
 
+                    }
                 }
 
                 stateWidth = 1;
@@ -101,18 +108,21 @@ void dmaHandler()
             }
         }
     }
-    if (stateWidth != 1)
+    if ((stateWidth != 1) && (!decode))
     {
-        // printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
+        printf("State: %s, Width: %d\n", state ? "True": "False", stateWidth);
     }
     // printf("Transfer done\n");
 
-    char n2 = extractedData & (char) 255;
-    char n1 = (extractedData >> 8) & (char) 255;
-    if (n1 + n2 == 255)
+    if (decode)
     {
-        // printf("%u\n", extractedData);
-        printf("Raw: %u, Command: %u, Repeat: %d\n", extractedData, n1 >> 1, n1 & 1u);
+        char n2 = extractedData & (char) 255;
+        char n1 = (extractedData >> 8) & (char) 255;
+        if (n1 + n2 == 255)
+        {
+            // printf("%u\n", extractedData);
+            printf("Raw: %u, Command: %u, Repeat: %d\n", extractedData, n1 >> 1, n1 & 1u);
+        }
     }
 
 
