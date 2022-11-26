@@ -10,7 +10,7 @@
 #define captureSize 432
 #define capturePin 13
 #define vS 14
-#define decode 0
+#define decode 1
 
 void dmaHandler();
 static inline void setupDma(PIO, uint);
