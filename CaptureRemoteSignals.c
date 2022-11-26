@@ -5,7 +5,6 @@
 #include "hardware/irq.h"
 #include "hardware/dma.h"
 #include "hardware/pio.h"
-#include "Capture.pio.h"
 
 #define captureSize 432
 #define capturePin 13
@@ -14,7 +13,7 @@
 
 void dmaHandler();
 static inline void setupDma(PIO, uint);
-static inline void setupPIO(PIO, uint, uint, uint, bool, float);
+static inline void setupPIO(PIO, uint, uint, bool, float);
 
 uint32_t buffer[captureSize];
 uint dmaChan;
@@ -37,7 +36,6 @@ int main()
     // uint capturePin = 13;
     // uint vS = 14;
 
-    uint offset = pio_add_program(pio, &capture_program);
 
     //setup power to sensor
     gpio_init(vS);
@@ -47,7 +45,7 @@ int main()
     gpio_pull_up(capturePin);
 
     setupDma(pio, sm);
-    setupPIO(pio, sm, offset, capturePin, false, clkdiv);
+    setupPIO(pio, sm, capturePin, false, clkdiv);
 
     while (true)
     {
@@ -132,9 +130,19 @@ void dmaHandler()
     pio_sm_clear_fifos(pio, sm);
     return;
 }
-static inline void setupPIO(PIO pio, uint sm, uint offset, uint pin, bool trigger, float clkdiv)
+static inline void setupPIO(PIO pio, uint sm, uint pin, bool trigger, float clkdiv)
 {
-    pio_sm_config c = capture_program_get_default_config(offset);
+    uint16_t instr = pio_encode_in(pio_pins, 1);
+    struct pio_program instructions = {
+        .instructions = &instr,
+        .length = 1,
+        .origin = -1
+    };
+    uint offset = pio_add_program(pio, &instructions);
+
+    pio_sm_config c = pio_get_default_sm_config();
+    sm_config_set_wrap(&c, offset, offset);
+
     sm_config_set_in_pins(&c, pin);
     sm_config_set_in_shift(&c, true, true, 32);  //set autopush to true
     sm_config_set_clkdiv(&c, clkdiv);
